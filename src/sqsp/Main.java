@@ -6,10 +6,28 @@ import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClient;
+import com.amazonaws.services.sqs.model.Message;
 
 
 public class Main
 {
+    static class DemoPool extends SqsPool
+    {
+        public DemoPool(String queueName, int poolSize) {
+            super(queueName, poolSize);
+        }
+
+        @Override
+        protected void handle(Message message) {
+            if (Math.random() > 0.5) {
+                System.out.println(message.getBody() + " FAILURE");
+                throw new RuntimeException("BOOM");
+            } else {
+                System.out.println(message.getBody() + " SUCCESS");
+            }
+        }
+    }
+
     public static void main(String[] args) throws InterruptedException
     {
         // sender
@@ -22,14 +40,13 @@ public class Main
             for (int i = 0; i < 10; i++) {
                 System.out.println("sending: message " + i);
                 sqs.sendMessage(queue, "message " + i);
-                try {
-                    Thread.sleep((long) (Math.random() * 1000));
-                } catch (InterruptedException ignored) {}
-
+//                try {
+//                    Thread.sleep((long) (Math.random() * 1000));
+//                } catch (InterruptedException ignored) {}
             }
         }).start();
 
         // receiver
-        SqsPool pool = new SqsPool("demo", 2);
+        SqsPool pool = new DemoPool("demo", 2);
     }
 }

@@ -1,6 +1,5 @@
 package sqsp;
 
-import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
@@ -28,15 +27,21 @@ public class SqsPool
             while (!_stopped) {
                 List<Message> messages = _sqs.receiveMessage(_queue).getMessages();
                 for (Message message : messages) {
-                    _ex.submit(() -> handle(message));
+                    _ex.submit(() -> process(message));
                 }
             }
         }).start();
     }
 
+    private void process(Message message) {
+        try {
+            handle(message);
+            _sqs.deleteMessage(_queue, message.getReceiptHandle());
+        } catch (Throwable ignored) {}
+    }
+
     protected void handle(Message message) {
         System.out.println(Thread.currentThread().getName() + " received: " + message.getBody());
-        _sqs.deleteMessage(_queue, message.getReceiptHandle());
     }
 
     public void stop() {
