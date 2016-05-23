@@ -9,21 +9,23 @@ Subclass `SqsWorkerPool` and implement `handle(Message message)`. If `handle` re
 
 ## Example
 
-	import com.amazonaws.services.sqs.model.Message;
+```java
+import com.amazonaws.services.sqs.model.Message;
 	
-	static class ExamplePool extends SqsWorkerPool
-    {
-        public ExamplePool(String queueName, int poolSize) {
-            super(queueName, poolSize);
-        }
-
-        @Override
-        protected void handle(Message message) {
-            System.out.println(message.getBody());
-        }
+static class ExamplePool extends SqsWorkerPool
+{
+    public ExamplePool(String queueName, int poolSize) {
+        super(queueName, poolSize);
     }
+
+    @Override
+    protected void handle(Message message) {
+        System.out.println(message.getBody());
+    }
+}
     
-    ExamplePool pool = new ExamplePool("hello", 4);
+ExamplePool pool = new ExamplePool("hello", 4);
+```
 
 ## License
 Copyright © 2016 Tim Lossen.
