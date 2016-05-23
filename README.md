@@ -28,6 +28,10 @@ class ExamplePool extends SqsWorkerPool
 ExamplePool pool = new ExamplePool("hello", 4);
 ```
 
+## Demo
+With `./gradlew run` you can start a simple demo.
+It queues 10 jobs, then starts a worker pool to process them. Each job has a 50% chance of succeeding.
+
 ## License
 Copyright © 2016 Tim Lossen.
 Distributed under the MIT license.

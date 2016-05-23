@@ -11,3 +11,11 @@ repositories {
 dependencies {
     compile group: 'com.amazonaws', name: 'aws-java-sdk-sqs', version: '1.11.3'
 }
+
+build.doLast {
+    copy {
+        from 'build/libs/'
+        into '.'
+        include '**/*.jar'
+    }
+}
