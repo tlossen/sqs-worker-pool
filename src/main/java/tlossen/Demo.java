@@ -8,43 +8,54 @@ import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.Message;
 
-import java.util.concurrent.Executors;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 
 public class Demo {
-    static class DemoPool extends SqsWorkerPool {
-        public DemoPool(String queueName, int poolSize) {
+    static class DemoPool extends SqsWorkerPool
+    {
+        private Set<String> _todo;
+
+        public DemoPool(String queueName, int poolSize, Set<String> todo) {
             super(queueName, poolSize);
+            _todo = todo;
         }
 
         @Override
         protected void handle(Message message) {
+            String job = message.getBody();
             if (Math.random() > 0.5) {
-                System.out.println(message.getBody() + " FAILURE");
-                throw new RuntimeException("BOOM");
+                System.out.println(job + " FAILED");
+                throw new RuntimeException("boom");
             } else {
-                System.out.println(message.getBody() + " SUCCESS");
+                _todo.remove(job);
+                System.out.println(job + " SUCCESS");
             }
         }
     }
 
     public static void main(String[] args) throws InterruptedException {
-        // sender
-        Executors.newSingleThreadExecutor().submit(
-            () -> {
-                AWSCredentials credentials = new ProfileCredentialsProvider().getCredentials();
-                AmazonSQS sqs = new AmazonSQSClient(credentials);
-                sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));
-                String queue = sqs.createQueue("demo").getQueueUrl();
+        // connect to sqs
+        AWSCredentials credentials = new ProfileCredentialsProvider().getCredentials();
+        AmazonSQS sqs = new AmazonSQSClient(credentials);
+        sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));
+        String queue = sqs.createQueue("demo").getQueueUrl();
 
-                for (int i = 0; i < 10; i++) {
-                    System.out.println("sending: message " + i);
-                    sqs.sendMessage(queue, "message " + i);
-                }
-            }
-        );
+        // create 10 jobs
+        Set<String> todo = new CopyOnWriteArraySet<>();
+        for (int i = 0; i < 10; i++) {
+            String job = "job " + i;
+            todo.add(job);
+            sqs.sendMessage(queue, job);
+            System.out.println("created: " + job);
+        }
 
-        // receiver
-        SqsWorkerPool pool = new DemoPool("demo", 2);
+        SqsWorkerPool pool = new DemoPool("demo", 2, todo);
+        while (!todo.isEmpty()) {
+            System.out.println(todo);
+            Thread.sleep(1000);
+        }
+        pool.stop();
     }
 }
