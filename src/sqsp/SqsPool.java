@@ -9,45 +9,53 @@ import com.amazonaws.services.sqs.model.Message;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 public class SqsPool
 {
-    private final ExecutorService _ex;
+    private final ExecutorService _executor;
     private final AmazonSQS _sqs;
     private final String _queue;
     private boolean _stopped = false;
 
     public SqsPool(final String queueName, final int poolSize) {
-        _ex = new BlockingExecutor(poolSize);
+        _executor = new BlockingExecutor(poolSize);
         _sqs = new AmazonSQSClient(new ProfileCredentialsProvider().getCredentials());
         _sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));
         _queue = _sqs.createQueue(queueName).getQueueUrl();
-        new Thread(() -> {
-            while (!_stopped) {
-                List<Message> messages = _sqs.receiveMessage(_queue).getMessages();
-                for (Message message : messages) {
-                    _ex.submit(() -> process(message));
-                }
+        Executors.newSingleThreadExecutor().submit(() -> fetcher());
+    }
+
+    protected void handle(Message message) {
+        System.out.println(Thread.currentThread().getName() + ": " + message.getBody());
+    }
+
+    public void stop() {
+        _stopped = true;
+        _executor.shutdown();
+    }
+
+    private void fetcher() {
+        while (!_stopped) fetch();
+    }
+
+    private void fetch() {
+        try {
+            List<Message> messages = _sqs.receiveMessage(_queue).getMessages();
+            for (Message message : messages) {
+                _executor.submit(() -> process(message));
             }
-        }).start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void process(Message message) {
         try {
             handle(message);
             _sqs.deleteMessage(_queue, message.getReceiptHandle());
-        } catch (Throwable ignored) {}
+        } catch (Exception ignored) {
+        }
     }
-
-    protected void handle(Message message) {
-        System.out.println(Thread.currentThread().getName() + " received: " + message.getBody());
-    }
-
-    public void stop() {
-        _stopped = true;
-        _ex.shutdown();
-    }
-
-
 }

@@ -8,11 +8,11 @@ import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.Message;
 
+import java.util.concurrent.Executors;
 
-public class Main
-{
-    static class DemoPool extends SqsPool
-    {
+
+public class Main {
+    static class DemoPool extends SqsPool {
         public DemoPool(String queueName, int poolSize) {
             super(queueName, poolSize);
         }
@@ -28,23 +28,21 @@ public class Main
         }
     }
 
-    public static void main(String[] args) throws InterruptedException
-    {
+    public static void main(String[] args) throws InterruptedException {
         // sender
-        new Thread(() -> {
-            AWSCredentials credentials = new ProfileCredentialsProvider().getCredentials();
-            AmazonSQS sqs = new AmazonSQSClient(credentials);
-            sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));
-            String queue = sqs.createQueue("demo").getQueueUrl();
+        Executors.newSingleThreadExecutor().submit(
+            () -> {
+                AWSCredentials credentials = new ProfileCredentialsProvider().getCredentials();
+                AmazonSQS sqs = new AmazonSQSClient(credentials);
+                sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));
+                String queue = sqs.createQueue("demo").getQueueUrl();
 
-            for (int i = 0; i < 10; i++) {
-                System.out.println("sending: message " + i);
-                sqs.sendMessage(queue, "message " + i);
-//                try {
-//                    Thread.sleep((long) (Math.random() * 1000));
-//                } catch (InterruptedException ignored) {}
+                for (int i = 0; i < 10; i++) {
+                    System.out.println("sending: message " + i);
+                    sqs.sendMessage(queue, "message " + i);
+                }
             }
-        }).start();
+        );
 
         // receiver
         SqsPool pool = new DemoPool("demo", 2);
