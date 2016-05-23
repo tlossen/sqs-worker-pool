@@ -1,4 +1,4 @@
-package sqsp;
+package tlossen;
 
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.regions.Region;
@@ -12,14 +12,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
-public class SqsPool
+public class SqsWorkerPool
 {
     private final ExecutorService _executor;
     private final AmazonSQS _sqs;
     private final String _queue;
     private boolean _stopped = false;
 
-    public SqsPool(final String queueName, final int poolSize) {
+    public SqsWorkerPool(final String queueName, final int poolSize) {
         _executor = new BlockingExecutor(poolSize);
         _sqs = new AmazonSQSClient(new ProfileCredentialsProvider().getCredentials());
         _sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));

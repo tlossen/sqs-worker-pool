@@ -1,4 +1,4 @@
-package sqsp;
+package tlossen;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
@@ -12,7 +12,7 @@ import java.util.concurrent.Executors;
 
 
 public class Main {
-    static class DemoPool extends SqsPool {
+    static class DemoPool extends SqsWorkerPool {
         public DemoPool(String queueName, int poolSize) {
             super(queueName, poolSize);
         }
@@ -45,6 +45,6 @@ public class Main {
         );
 
         // receiver
-        SqsPool pool = new DemoPool("demo", 2);
+        SqsWorkerPool pool = new DemoPool("demo", 2);
     }
 }
