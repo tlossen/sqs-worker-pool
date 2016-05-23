@@ -12,7 +12,7 @@ Subclass `SqsWorkerPool` and implement `handle(Message message)`. If `handle` re
 ```java
 import com.amazonaws.services.sqs.model.Message;
 	
-static class ExamplePool extends SqsWorkerPool
+class ExamplePool extends SqsWorkerPool
 {
     public ExamplePool(String queueName, int poolSize) {
         super(queueName, poolSize);
