@@ -11,7 +11,7 @@ import com.amazonaws.services.sqs.model.Message;
 import java.util.concurrent.Executors;
 
 
-public class Main {
+public class Demo {
     static class DemoPool extends SqsWorkerPool {
         public DemoPool(String queueName, int poolSize) {
             super(queueName, poolSize);

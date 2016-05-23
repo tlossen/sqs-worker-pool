@@ -2,7 +2,7 @@ apply plugin: 'java'
 apply plugin: 'application'
 
 version = '0.1'
-mainClassName = 'tlossen.Main'
+mainClassName = 'tlossen.Demo'
 
 repositories {
     mavenCentral()

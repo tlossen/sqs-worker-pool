@@ -12,7 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
-public class SqsWorkerPool
+public abstract class SqsWorkerPool
 {
     private final ExecutorService _executor;
     private final AmazonSQS _sqs;
@@ -27,27 +27,23 @@ public class SqsWorkerPool
         Executors.newSingleThreadExecutor().submit(() -> fetcher());
     }
 
-    protected void handle(Message message) {
-        System.out.println(Thread.currentThread().getName() + ": " + message.getBody());
-    }
-
     public void stop() {
         _stopped = true;
         _executor.shutdown();
     }
 
-    private void fetcher() {
-        while (!_stopped) fetch();
-    }
+    protected abstract void handle(Message message);
 
-    private void fetch() {
-        try {
-            List<Message> messages = _sqs.receiveMessage(_queue).getMessages();
-            for (Message message : messages) {
-                _executor.submit(() -> process(message));
+    private void fetcher() {
+        while (!_stopped) {
+            try {
+                List<Message> messages = _sqs.receiveMessage(_queue).getMessages();
+                for (Message message : messages) {
+                    _executor.submit(() -> process(message));
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 
@@ -56,6 +52,7 @@ public class SqsWorkerPool
             handle(message);
             _sqs.deleteMessage(_queue, message.getReceiptHandle());
         } catch (Exception ignored) {
+            // message is automatically retried
         }
     }
 }
