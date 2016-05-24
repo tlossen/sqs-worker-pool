@@ -17,8 +17,8 @@ public class Demo {
     {
         private Set<String> _todo;
 
-        public DemoPool(String queueName, int poolSize, Set<String> todo) {
-            super(queueName, poolSize);
+        public DemoPool(Config config, Set<String> todo) {
+            super(config);
             _todo = todo;
         }
 
@@ -36,13 +36,19 @@ public class Demo {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        // connect to sqs
+        // settings
+        Config config = new Config("demo")
+                .withRegion(Regions.EU_CENTRAL_1)
+                .withPoolSize(2)
+                .withVisibilityTimeout(3);
+
+        // connect to sqs ...
         AWSCredentials credentials = new ProfileCredentialsProvider().getCredentials();
         AmazonSQS sqs = new AmazonSQSClient(credentials);
-        sqs.setRegion(Region.getRegion(Regions.EU_CENTRAL_1));
-        String queue = sqs.createQueue("demo").getQueueUrl();
+        sqs.setRegion(Region.getRegion(config.region));
+        String queue = sqs.createQueue(config.queueName).getQueueUrl();
 
-        // create 10 jobs
+        // ... and create 10 jobs
         Set<String> todo = new CopyOnWriteArraySet<>();
         for (int i = 0; i < 10; i++) {
             String job = "job " + i;
@@ -51,7 +57,10 @@ public class Demo {
             System.out.println("created: " + job);
         }
 
-        SqsWorkerPool pool = new DemoPool("demo", 2, todo);
+        // start worker pool
+        SqsWorkerPool pool = new DemoPool(config, todo);
+
+        // track open jobs until all are done
         while (!todo.isEmpty()) {
             System.out.println(todo);
             Thread.sleep(1000);

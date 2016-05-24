@@ -15,8 +15,8 @@ import com.amazonaws.services.sqs.model.Message;
 	
 class ExamplePool extends SqsWorkerPool
 {
-    public ExamplePool(String queueName, int poolSize) {
-        super(queueName, poolSize);
+    public ExamplePool(Config config) {
+        super(config);
     }
 
     @Override
@@ -25,16 +25,13 @@ class ExamplePool extends SqsWorkerPool
     }
 }
     
-ExamplePool pool = new ExamplePool("hello", 4);
+ExamplePool pool = new ExamplePool(new Config("test"));
 ```
 
 ## Demo
 With `./gradlew run` you can start a simple demo.
 It queues 10 jobs, then starts a worker pool to process them. Each job has a 50% chance of succeeding.
 
-## Todo
-* make visibility timeout configurable
-* make AWS region configurable
 
 ## License
 Copyright © 2016 Tim Lossen.
