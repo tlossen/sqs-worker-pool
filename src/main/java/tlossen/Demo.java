@@ -6,21 +6,20 @@ import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClient;
-import com.amazonaws.services.sqs.model.CreateQueueRequest;
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.SetQueueAttributesRequest;
 
 import java.util.*;
-import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 public class Demo
 {
     static class DemoPool extends SqsWorkerPool
     {
-        private Set<String> _todo;
+        private AtomicInteger _todo;
 
-        public DemoPool(Config config, Set<String> todo) {
+        public DemoPool(Config config, AtomicInteger todo) {
             super(config);
             _todo = todo;
         }
@@ -32,17 +31,17 @@ public class Demo
                 System.out.println(job + " FAILED");
                 throw new RuntimeException("boom");
             } else {
-                _todo.remove(job);
+                _todo.decrementAndGet();
                 System.out.println(job + " SUCCESS");
             }
         }
     }
 
-    static class BrokenPool extends SqsWorkerPool
+    static class DeadLetterPool extends SqsWorkerPool
     {
-        private Set<String> _todo;
+        private AtomicInteger _todo;
 
-        public BrokenPool(Config config, Set<String> todo) {
+        public DeadLetterPool(Config config, AtomicInteger todo) {
             super(config);
             _todo = todo;
         }
@@ -50,7 +49,7 @@ public class Demo
         @Override
         protected void handle(Message message) {
             String job = message.getBody();
-            _todo.remove(job);
+            _todo.decrementAndGet();
             System.out.println(job + " DEAD");
         }
     }
@@ -69,29 +68,28 @@ public class Demo
         String queue = sqs.createQueue(config.queueName).getQueueUrl();
 
         // configure dead letter queue
-        String brokenQueue = sqs.createQueue(config.queueName + "_broken").getQueueUrl();
-        String brokenArn = sqs.getQueueAttributes(brokenQueue, Arrays.asList("QueueArn")).getAttributes().get("QueueArn");
+        String deadLetterQueue = sqs.createQueue(config.queueName + "_dead_letter").getQueueUrl();
+        String deadLetterArn = sqs.getQueueAttributes(deadLetterQueue, Arrays.asList("QueueArn")).getAttributes().get("QueueArn");
         sqs.setQueueAttributes(new SetQueueAttributesRequest(queue,
                 Collections.singletonMap("RedrivePolicy",
-                        "{\"maxReceiveCount\":\"3\", \"deadLetterTargetArn\":\"" + brokenArn + "\"}")));
+                        "{\"maxReceiveCount\":\"3\", \"deadLetterTargetArn\":\"" + deadLetterArn + "\"}")));
 
         // create 10 jobs
-        Set<String> todo = new CopyOnWriteArraySet<>();
-        for (int i = 0; i < 10; i++) {
+        AtomicInteger todo = new AtomicInteger(10);
+        for (int i = 0; i < todo.get(); i++) {
             String job = "job " + i;
-            todo.add(job);
             sqs.sendMessage(queue, job);
             System.out.println("created: " + job);
         }
 
-        // start processing jobs
+        // process jobs until all done
         SqsWorkerPool pool = new DemoPool(config, todo);
-        SqsWorkerPool brokenPool = new BrokenPool(new Config(config.queueName + "_broken"), todo);
-        while (!todo.isEmpty()) {
-            System.out.println(todo);
+        SqsWorkerPool deadLetterPool = new DeadLetterPool(new Config(config.queueName + "_dead_letter"), todo);
+        do {
             Thread.sleep(1000);
-        }
+            System.out.println("[todo = " + todo + "]");
+        } while (todo.get() > 0);
         pool.stop();
-        brokenPool.stop();
+        deadLetterPool.stop();
     }
 }
